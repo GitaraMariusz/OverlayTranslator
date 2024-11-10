@@ -44,6 +44,14 @@ def toggle_main_window():
     else:
         root.withdraw()
 
+def open_settings():
+    settings_window = tk.Toplevel(root)
+    settings_window.title("Settings")
+    settings_window.geometry("200x100")
+    settings_window.configure(bg="white")
+    settings_label = tk.Label(settings_window, text="Settings window", bg="white")
+    settings_label.pack(padx=20, pady=20)
+
 root = tk.Tk()
 root.title("Input Box")
 
@@ -54,7 +62,7 @@ root.configure(bg="white")
 screen_width = root.winfo_screenwidth()
 screen_height = root.winfo_screenheight()
 x_position = 10
-y_position = screen_height - window_height - 150
+y_position = screen_height - window_height - 200
 
 root.geometry(f"{window_width}x{window_height}+{x_position}+{y_position}")
 root.overrideredirect(True)
@@ -69,7 +77,11 @@ target_lang_var = tk.StringVar(root)
 target_lang_var.set("ja")  
 target_lang_menu = tk.OptionMenu(root, target_lang_var, "es", "fr", "de", "ja", "zh")
 target_lang_menu.configure(bg="white")
-target_lang_menu.pack()
+
+settings_button = tk.Button(root, text="Settings", command=open_settings, bd=0, bg="white", fg="black")
+
+target_lang_menu.pack(side="left", padx=10)
+settings_button.pack(side="left", padx=5)
 
 popup_window = tk.Toplevel(root)
 popup_window.title("Translation")
@@ -82,5 +94,6 @@ popup_text = tk.Text(popup_window, height=3, wrap="word", state=tk.DISABLED, bd=
 popup_text.pack(padx=10, pady=10)
 
 keyboard.add_hotkey("ctrl+alt+t", toggle_main_window)
+toggle_main_window()
 
 root.mainloop()
