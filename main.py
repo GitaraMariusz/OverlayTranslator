@@ -7,6 +7,7 @@ translator = Translator()
 
 last_input_text = ""
 debounce_timer = None
+shortcut = "ctrl+alt+t"
 
 def translate_text():
     global last_input_text
@@ -44,13 +45,36 @@ def toggle_main_window():
     else:
         root.withdraw()
 
+def update_shortcut(new_shortcut):
+    global shortcut
+    keyboard.remove_hotkey(shortcut) 
+    shortcut = new_shortcut
+    keyboard.add_hotkey(shortcut, toggle_main_window)  
+
 def open_settings():
     settings_window = tk.Toplevel(root)
     settings_window.title("Settings")
-    settings_window.geometry("200x100")
+    settings_window.geometry("300x200")
     settings_window.configure(bg="white")
-    settings_label = tk.Label(settings_window, text="Settings window", bg="white")
-    settings_label.pack(padx=20, pady=20)
+    
+    shortcut_frame = tk.Frame(settings_window, bg="white")
+    shortcut_frame.pack(pady=10, padx=10, anchor="w")
+    
+    settings_label = tk.Label(shortcut_frame, text="Open Shortcut:", bg="white")
+    settings_label.pack(side="left", padx=(0, 10))  
+
+    shortcut_entry = tk.Entry(shortcut_frame)
+    shortcut_entry.insert(0, shortcut)  
+    shortcut_entry.pack(side="left")
+
+    def save_shortcut():
+        new_shortcut = shortcut_entry.get().strip()
+        if new_shortcut:
+            update_shortcut(new_shortcut)
+        settings_window.destroy()
+
+    save_button = tk.Button(settings_window, text="Save", command=save_shortcut)
+    save_button.pack(pady=20, anchor="center", side="bottom")
 
 root = tk.Tk()
 root.title("Input Box")
@@ -72,7 +96,6 @@ input_box = tk.Text(root, height=3, wrap="word", bd=0, highlightthickness=0, bg=
 input_box.pack(padx=10, pady=10)
 input_box.bind("<KeyRelease>", on_input_change)  
 
-
 target_lang_var = tk.StringVar(root)
 target_lang_var.set("ja")  
 target_lang_menu = tk.OptionMenu(root, target_lang_var, "es", "fr", "de", "ja", "zh")
@@ -93,7 +116,7 @@ popup_window.withdraw()
 popup_text = tk.Text(popup_window, height=3, wrap="word", state=tk.DISABLED, bd=0, highlightthickness=0, bg="white")
 popup_text.pack(padx=10, pady=10)
 
-keyboard.add_hotkey("ctrl+alt+t", toggle_main_window)
+keyboard.add_hotkey(shortcut, toggle_main_window)
 toggle_main_window()
 
 root.mainloop()
