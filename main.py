@@ -8,6 +8,9 @@ translator = Translator()
 last_input_text = ""
 debounce_timer = None
 shortcut = "ctrl+alt+t"
+source_lang = "en"  
+
+languages = ["en", "ja", "es", "fr", "de", "zh"]
 
 def translate_text():
     global last_input_text
@@ -16,7 +19,7 @@ def translate_text():
     
     if input_text != last_input_text and input_text:
         target_lang = target_lang_var.get()
-        result = translator.translate(input_text, src="en", dest=target_lang)
+        result = translator.translate(input_text, src=source_lang, dest=target_lang)
         
         popup_text.config(state=tk.NORMAL)
         popup_text.delete("1.0", tk.END)
@@ -51,10 +54,21 @@ def update_shortcut(new_shortcut):
     shortcut = new_shortcut
     keyboard.add_hotkey(shortcut, toggle_main_window)  
 
+def update_target_lang_options():
+    target_lang_menu['menu'].delete(0, 'end')
+    
+    for lang in languages:
+        if lang != source_lang:
+            target_lang_menu['menu'].add_command(label=lang, command=lambda l=lang: target_lang_var.set(l))
+
+    if target_lang_var.get() == source_lang:
+        target_lang_var.set(languages[0] if languages[0] != source_lang else languages[1])
+
 def open_settings():
+    global source_lang
     settings_window = tk.Toplevel(root)
     settings_window.title("Settings")
-    settings_window.geometry("300x200")
+    settings_window.geometry("300x250")
     settings_window.configure(bg="white")
     
     shortcut_frame = tk.Frame(settings_window, bg="white")
@@ -73,7 +87,25 @@ def open_settings():
             update_shortcut(new_shortcut)
         settings_window.destroy()
 
-    save_button = tk.Button(settings_window, text="Save", command=save_shortcut)
+    language_frame = tk.Frame(settings_window, bg="white")
+    language_frame.pack(pady=10, padx=10, anchor="w")
+
+    lang_label = tk.Label(language_frame, text="Source Language:", bg="white")
+    lang_label.pack(side="left", padx=(0, 10))
+
+    source_lang_var = tk.StringVar(settings_window)
+    source_lang_var.set(source_lang)  
+    source_lang_menu = tk.OptionMenu(language_frame, source_lang_var, *languages)
+    source_lang_menu.configure(bg="white")
+    source_lang_menu.pack(side="left")
+
+    def save_settings():
+        global source_lang
+        source_lang = source_lang_var.get() 
+        update_target_lang_options() 
+        save_shortcut()
+
+    save_button = tk.Button(settings_window, text="Save", command=save_settings)
     save_button.pack(pady=20, anchor="center", side="bottom")
 
 root = tk.Tk()
@@ -98,7 +130,7 @@ input_box.bind("<KeyRelease>", on_input_change)
 
 target_lang_var = tk.StringVar(root)
 target_lang_var.set("ja")  
-target_lang_menu = tk.OptionMenu(root, target_lang_var, "es", "fr", "de", "ja", "zh")
+target_lang_menu = tk.OptionMenu(root, target_lang_var, *[lang for lang in languages if lang != source_lang])
 target_lang_menu.configure(bg="white")
 
 settings_button = tk.Button(root, text="Settings", command=open_settings, bd=0, bg="white", fg="black")
