@@ -12,6 +12,8 @@ source_lang = "en"
 
 languages = ["en", "ja", "es", "fr", "de", "zh"]
 
+settings_window = None
+
 def translate_text():
     global last_input_text
     
@@ -27,7 +29,7 @@ def translate_text():
         popup_text.config(state=tk.DISABLED)
         
         popup_window.deiconify()
-        popup_window.geometry(f"+{root.winfo_x()}+{root.winfo_y() + root.winfo_height() + 10}")
+        popup_window.geometry(f"+{root.winfo_x()}+{root.winfo_y() + int(0.12 * screen_height)}")
         
         last_input_text = input_text
 
@@ -64,63 +66,74 @@ def update_target_lang_options():
     if target_lang_var.get() == source_lang:
         target_lang_var.set(languages[0] if languages[0] != source_lang else languages[1])
 
-def open_settings():
-    global source_lang
-    settings_window = tk.Toplevel(root)
-    settings_window.title("Settings")
-    settings_window.geometry("300x250")
-    settings_window.configure(bg="white")
-    
-    shortcut_frame = tk.Frame(settings_window, bg="white")
-    shortcut_frame.pack(pady=10, padx=10, anchor="w")
-    
-    settings_label = tk.Label(shortcut_frame, text="Open Shortcut:", bg="white")
-    settings_label.pack(side="left", padx=(0, 10))  
+def toggle_settings():
+    global settings_window, source_lang
 
-    shortcut_entry = tk.Entry(shortcut_frame)
-    shortcut_entry.insert(0, shortcut)  
-    shortcut_entry.pack(side="left")
-
-    def save_shortcut():
-        new_shortcut = shortcut_entry.get().strip()
-        if new_shortcut:
-            update_shortcut(new_shortcut)
+    if settings_window and tk.Toplevel.winfo_exists(settings_window):
         settings_window.destroy()
+        settings_window = None
+    else:
+        settings_window = tk.Toplevel(root)
+        settings_window.title("Settings")
+        settings_window.overrideredirect(True)
 
-    language_frame = tk.Frame(settings_window, bg="white")
-    language_frame.pack(pady=10, padx=10, anchor="w")
+        settings_window_width = popup_window_width
+        settings_window_height = int(0.15 * screen_height)
+        settings_x_position = root.winfo_x()
+        settings_y_position = screen_height - settings_window_height - int(0.32 * screen_height)
+        settings_window.geometry(f"{settings_window_width}x{settings_window_height}+{settings_x_position}+{settings_y_position}")
+        
+        settings_window.configure(bg="white")
+        
+        shortcut_frame = tk.Frame(settings_window, bg="white")
+        shortcut_frame.pack(pady=10, padx=10, anchor="w")
+        
+        settings_label = tk.Label(shortcut_frame, text="Open Shortcut:", bg="white")
+        settings_label.pack(side="left", padx=(0, 10))  
 
-    lang_label = tk.Label(language_frame, text="Source Language:", bg="white")
-    lang_label.pack(side="left", padx=(0, 10))
+        shortcut_entry = tk.Entry(shortcut_frame)
+        shortcut_entry.insert(0, shortcut)  
+        shortcut_entry.pack(side="left")
 
-    source_lang_var = tk.StringVar(settings_window)
-    source_lang_var.set(source_lang)  
-    source_lang_menu = tk.OptionMenu(language_frame, source_lang_var, *languages)
-    source_lang_menu.configure(bg="white")
-    source_lang_menu.pack(side="left")
+        def save_shortcut():
+            new_shortcut = shortcut_entry.get().strip()
+            if new_shortcut:
+                update_shortcut(new_shortcut)
+            settings_window.destroy()
 
-    def save_settings():
-        global source_lang
-        source_lang = source_lang_var.get() 
-        update_target_lang_options() 
-        save_shortcut()
+        language_frame = tk.Frame(settings_window, bg="white")
+        language_frame.pack(pady=10, padx=10, anchor="w")
 
-    save_button = tk.Button(settings_window, text="Save", command=save_settings)
-    save_button.pack(pady=20, anchor="center", side="bottom")
+        lang_label = tk.Label(language_frame, text="Source Language:", bg="white")
+        lang_label.pack(side="left", padx=(0, 10))
+
+        source_lang_var = tk.StringVar(settings_window)
+        source_lang_var.set(source_lang)  
+        source_lang_menu = tk.OptionMenu(language_frame, source_lang_var, *languages)
+        source_lang_menu.configure(bg="white")
+        source_lang_menu.pack(side="left")
+
+        def save_settings():
+            global source_lang
+            source_lang = source_lang_var.get() 
+            update_target_lang_options() 
+            save_shortcut()
+
+        save_button = tk.Button(settings_window, text="Save", command=save_settings)
+        save_button.pack(pady=20, anchor="center", side="bottom")
 
 root = tk.Tk()
 root.title("Input Box")
 
-window_width = 300
-window_height = 100
-root.configure(bg="white")
-
 screen_width = root.winfo_screenwidth()
 screen_height = root.winfo_screenheight()
-x_position = 10
-y_position = screen_height - window_height - 200
+window_width = int(0.2 * screen_width)  
+window_height = int(0.1 * screen_height)
+x_position = int(0.02 * screen_width)
+y_position = screen_height - window_height - int(0.2 * screen_height)
 
 root.geometry(f"{window_width}x{window_height}+{x_position}+{y_position}")
+root.configure(bg="white")
 root.overrideredirect(True)
 root.withdraw()  
 
@@ -133,14 +146,17 @@ target_lang_var.set("ja")
 target_lang_menu = tk.OptionMenu(root, target_lang_var, *[lang for lang in languages if lang != source_lang])
 target_lang_menu.configure(bg="white")
 
-settings_button = tk.Button(root, text="Settings", command=open_settings, bd=0, bg="white", fg="black")
+settings_button = tk.Button(root, text="Settings", command=toggle_settings, bd=0, bg="white", fg="black")
 
 target_lang_menu.pack(side="left", padx=10)
 settings_button.pack(side="left", padx=5)
 
 popup_window = tk.Toplevel(root)
 popup_window.title("Translation")
-popup_window.geometry("300x100")
+
+popup_window_width = window_width  
+popup_window_height = int(0.1 * screen_height)
+popup_window.geometry(f"{popup_window_width}x{popup_window_height}")
 popup_window.configure(bg="white")
 popup_window.overrideredirect(True)
 popup_window.withdraw()
