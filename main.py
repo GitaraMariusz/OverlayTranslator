@@ -1,175 +1,191 @@
-import tkinter as tk
-import keyboard
+from PyQt5 import QtWidgets, QtCore
 from googletrans import Translator
-from threading import Timer
+import sys
+import keyboard
 
 translator = Translator()
 
 last_input_text = ""
-debounce_timer = None
 shortcut = "ctrl+alt+t"
-source_lang = "en"  
-
+source_lang = "en"
 languages = ["en", "ja", "es", "fr", "de", "zh"]
 
-settings_window = None
+class MainWindow(QtWidgets.QWidget):
+    def __init__(self):
+        super().__init__()
+        self.init_ui()
 
-def translate_text():
-    global last_input_text
+    def init_ui(self):
+        self.setWindowFlags(QtCore.Qt.FramelessWindowHint | QtCore.Qt.WindowStaysOnTopHint)
+        self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
+        self.setWindowOpacity(0.96)
+
+        screen = QtWidgets.QApplication.primaryScreen().availableGeometry()
+        self.setGeometry(50, screen.height() - 300, 300, 150)  
+
+        layout = QtWidgets.QVBoxLayout()
+        layout.setContentsMargins(10, 10, 10, 10)
+        self.setLayout(layout)
+
+        self.input_box = QtWidgets.QTextEdit(self)
+        self.input_box.setPlaceholderText("Type text here...")
+        self.input_box.textChanged.connect(self.on_input_change)
+        layout.addWidget(self.input_box)
+
+        self.debounce_timer = QtCore.QTimer()
+        self.debounce_timer.setInterval(500)  
+        self.debounce_timer.setSingleShot(True)
+        self.debounce_timer.timeout.connect(self.perform_translation)
+
+        bottom_layout = QtWidgets.QHBoxLayout()
+        self.target_lang_combo = QtWidgets.QComboBox(self)
+        self.target_lang_combo.addItems([lang for lang in languages])  
+        bottom_layout.addWidget(self.target_lang_combo)
+
+        self.settings_button = QtWidgets.QPushButton("Settings", self)
+        self.settings_button.clicked.connect(self.open_settings)
+        bottom_layout.addWidget(self.settings_button)
+
+        layout.addLayout(bottom_layout)
+
+        self.popup_window = PopupWindow()
+        
+        self.update_shortcut(shortcut)
+
+    def update_shortcut(self, new_shortcut):
+        global shortcut
+        try:
+            keyboard.remove_hotkey(shortcut)
+        except KeyError:
+            pass
     
-    input_text = input_box.get("1.0", "end-1c").strip()
-    
-    if input_text != last_input_text and input_text:
-        target_lang = target_lang_var.get()
-        result = translator.translate(input_text, src=source_lang, dest=target_lang)
+        shortcut = new_shortcut
+        keyboard.add_hotkey(shortcut, self.toggle_visibility)
+
+    def toggle_visibility(self):
+        if self.isHidden():
+            self.show()
+        else:
+            self.hide()
+
+    def on_input_change(self):
+        self.debounce_timer.start()  
+
+    def perform_translation(self):
+        global last_input_text
+        input_text = self.input_box.toPlainText().strip()
+
+        if input_text != last_input_text and input_text:
+            last_input_text = input_text
+            self.translate_text(input_text)
+        elif not input_text:
+            self.popup_window.hide()
+            last_input_text = ""
+
+    def translate_text(self, text):
+        global source_lang
+        target_lang = self.target_lang_combo.currentText()
+        result = translator.translate(text, src=source_lang, dest=target_lang)
+        self.popup_window.show_translation(result.text, self)
+
+    def open_settings(self):
+        if hasattr(self, 'settings_window') and self.settings_window.isVisible():
+            self.settings_window.close() 
+        else:
+            self.settings_window = SettingsWindow(self)
+            self.settings_window.show()
+
+
+class PopupWindow(QtWidgets.QWidget):
+    def __init__(self):
+        super().__init__()
+        self.init_ui()
+
+    def init_ui(self):
+        self.setWindowFlags(QtCore.Qt.FramelessWindowHint | QtCore.Qt.WindowStaysOnTopHint)
+        self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
+        self.setWindowOpacity(0.96)
+        self.setFixedSize(300, 100)
+
+        layout = QtWidgets.QVBoxLayout()
+        layout.setContentsMargins(10, 10, 10, 10)
+        self.setLayout(layout)
+
+        self.text_display = QtWidgets.QTextEdit(self)
+        self.text_display.setReadOnly(True)
+        layout.addWidget(self.text_display)
+
+    def show_translation(self, text, parent):
+        self.text_display.setPlainText(text)
+        self.move(parent.x(), parent.y() + parent.height() + 10)
+        self.show()
+
+
+class SettingsWindow(QtWidgets.QWidget):
+    def __init__(self, main_window):
+        super().__init__()
+        self.main_window = main_window
+        self.init_ui()
+
+    def init_ui(self):
+        self.setWindowFlags(QtCore.Qt.FramelessWindowHint | QtCore.Qt.WindowStaysOnTopHint)
+        self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
+        self.setWindowOpacity(0.96)
+        self.setFixedSize(300, 150)
         
-        popup_text.config(state=tk.NORMAL)
-        popup_text.delete("1.0", tk.END)
-        popup_text.insert("1.0", result.text)
-        popup_text.config(state=tk.DISABLED)
+        self.setStyleSheet("background-color: white; border-radius: 10px;")
+
+        layout = QtWidgets.QVBoxLayout()
+        layout.setContentsMargins(10, 10, 10, 10)
+        self.setLayout(layout)
+
+        shortcut_layout = QtWidgets.QHBoxLayout()
+        shortcut_label = QtWidgets.QLabel("Open Shortcut:", self)
+        shortcut_layout.addWidget(shortcut_label)
+
+        self.shortcut_entry = QtWidgets.QLineEdit(self)
+        self.shortcut_entry.setText(shortcut)
+        shortcut_layout.addWidget(self.shortcut_entry)
+        layout.addLayout(shortcut_layout)
+
+        language_layout = QtWidgets.QHBoxLayout()
+        lang_label = QtWidgets.QLabel("Source Language:", self)
+        language_layout.addWidget(lang_label)
+
+        self.source_lang_combo = QtWidgets.QComboBox(self)
+        self.source_lang_combo.addItems(languages)
+        self.source_lang_combo.setCurrentText(source_lang)
+        language_layout.addWidget(self.source_lang_combo)
+        layout.addLayout(language_layout)
+
+        save_button = QtWidgets.QPushButton("Save", self)
+        save_button.clicked.connect(self.save_settings)
+        layout.addWidget(save_button, alignment=QtCore.Qt.AlignCenter)
+
+    def save_settings(self):
+        global source_lang
+        new_shortcut = self.shortcut_entry.text().strip()
+        source_lang = self.source_lang_combo.currentText()
+
+        if new_shortcut:
+            self.main_window.update_shortcut(new_shortcut)
         
-        popup_window.deiconify()
-        popup_window.geometry(f"+{root.winfo_x()}+{root.winfo_y() + int(0.12 * screen_height)}")
-        
-        last_input_text = input_text
+        self.close()
 
-    elif not input_text:
-        popup_window.withdraw()
-        last_input_text = ""
+    def show(self):
+        extra_offset = 20  
+        if self.main_window.popup_window.isVisible():
+            self.move(self.main_window.popup_window.x(), self.main_window.popup_window.y() - self.height() + extra_offset)
+        else:
+            self.move(self.main_window.x(), self.main_window.y() - self.height() + extra_offset)
+        super().show()
 
-def on_input_change(event=None):
-    global debounce_timer
-    if debounce_timer:
-        debounce_timer.cancel()
-    debounce_timer = Timer(0.5, translate_text)
-    debounce_timer.start()
 
-def toggle_main_window():
-    if root.state() == 'withdrawn':
-        root.deiconify()
-    else:
-        root.withdraw()
+def main():
+    app = QtWidgets.QApplication(sys.argv)
+    window = MainWindow()
+    window.show()
+    sys.exit(app.exec_())
 
-def update_shortcut(new_shortcut):
-    global shortcut
-    keyboard.remove_hotkey(shortcut) 
-    shortcut = new_shortcut
-    keyboard.add_hotkey(shortcut, toggle_main_window)  
-
-def update_target_lang_options():
-    target_lang_menu['menu'].delete(0, 'end')
-    
-    for lang in languages:
-        if lang != source_lang:
-            target_lang_menu['menu'].add_command(label=lang, command=lambda l=lang: target_lang_var.set(l))
-
-    if target_lang_var.get() == source_lang:
-        target_lang_var.set(languages[0] if languages[0] != source_lang else languages[1])
-
-def toggle_settings():
-    global settings_window, source_lang
-
-    if settings_window and tk.Toplevel.winfo_exists(settings_window):
-        settings_window.destroy()
-        settings_window = None
-    else:
-        settings_window = tk.Toplevel(root)
-        settings_window.title("Settings")
-        settings_window.overrideredirect(True)
-        settings_window.attributes("-topmost", True)  
-
-        settings_window_width = popup_window_width
-        settings_window_height = int(0.15 * screen_height)
-        settings_x_position = root.winfo_x()
-        settings_y_position = screen_height - settings_window_height - int(0.32 * screen_height)
-        settings_window.geometry(f"{settings_window_width}x{settings_window_height}+{settings_x_position}+{settings_y_position}")
-        
-        settings_window.configure(bg="white")
-        
-        shortcut_frame = tk.Frame(settings_window, bg="white")
-        shortcut_frame.pack(pady=10, padx=10, anchor="w")
-        
-        settings_label = tk.Label(shortcut_frame, text="Open Shortcut:", bg="white")
-        settings_label.pack(side="left", padx=(0, 10))  
-
-        shortcut_entry = tk.Entry(shortcut_frame)
-        shortcut_entry.insert(0, shortcut)  
-        shortcut_entry.pack(side="left")
-
-        def save_shortcut():
-            new_shortcut = shortcut_entry.get().strip()
-            if new_shortcut:
-                update_shortcut(new_shortcut)
-            settings_window.destroy()
-
-        language_frame = tk.Frame(settings_window, bg="white")
-        language_frame.pack(pady=10, padx=10, anchor="w")
-
-        lang_label = tk.Label(language_frame, text="Source Language:", bg="white")
-        lang_label.pack(side="left", padx=(0, 10))
-
-        source_lang_var = tk.StringVar(settings_window)
-        source_lang_var.set(source_lang)  
-        source_lang_menu = tk.OptionMenu(language_frame, source_lang_var, *languages)
-        source_lang_menu.configure(bg="white")
-        source_lang_menu.pack(side="left")
-
-        def save_settings():
-            global source_lang
-            source_lang = source_lang_var.get() 
-            update_target_lang_options() 
-            save_shortcut()
-
-        save_button = tk.Button(settings_window, text="Save", command=save_settings)
-        save_button.pack(pady=20, anchor="center", side="bottom")
-
-root = tk.Tk()
-root.title("Input Box")
-
-root.attributes("-topmost", True)
-
-screen_width = root.winfo_screenwidth()
-screen_height = root.winfo_screenheight()
-window_width = int(0.2 * screen_width)  
-window_height = int(0.1 * screen_height)
-x_position = int(0.02 * screen_width)
-y_position = screen_height - window_height - int(0.2 * screen_height)
-
-root.geometry(f"{window_width}x{window_height}+{x_position}+{y_position}")
-root.configure(bg="white")
-root.overrideredirect(True)
-root.withdraw()  
-
-input_box = tk.Text(root, height=3, wrap="word", bd=0, highlightthickness=0, bg="white")
-input_box.pack(padx=10, pady=10)
-input_box.bind("<KeyRelease>", on_input_change)  
-
-target_lang_var = tk.StringVar(root)
-target_lang_var.set("ja")  
-target_lang_menu = tk.OptionMenu(root, target_lang_var, *[lang for lang in languages if lang != source_lang])
-target_lang_menu.configure(bg="white")
-
-settings_button = tk.Button(root, text="Settings", command=toggle_settings, bd=0, bg="white", fg="black")
-
-target_lang_menu.pack(side="left", padx=10)
-settings_button.pack(side="left", padx=5)
-
-popup_window = tk.Toplevel(root)
-popup_window.title("Translation")
-
-popup_window.attributes("-topmost", True)
-
-popup_window_width = window_width  
-popup_window_height = int(0.1 * screen_height)
-popup_window.geometry(f"{popup_window_width}x{popup_window_height}")
-popup_window.configure(bg="white")
-popup_window.overrideredirect(True)
-popup_window.withdraw()
-
-popup_text = tk.Text(popup_window, height=3, wrap="word", state=tk.DISABLED, bd=0, highlightthickness=0, bg="white")
-popup_text.pack(padx=10, pady=10)
-
-keyboard.add_hotkey(shortcut, toggle_main_window)
-toggle_main_window()
-
-root.mainloop()
+if __name__ == "__main__":
+    main()
