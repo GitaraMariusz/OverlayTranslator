@@ -13,8 +13,11 @@ class MainWindow(QtWidgets.QWidget):
         self.last_input_text = ""
         self.shortcut = "ctrl+alt+t"
         self.source_lang = "en"
-        
+        self.settings_window = None  # Initialize the settings window as None
+        self.settings_was_open = False  # Track if settings were open before hiding
+
         self.init_ui()
+        self.update_shortcut(self.shortcut)
 
     def init_ui(self):
         self.setWindowFlags(QtCore.Qt.FramelessWindowHint | QtCore.Qt.WindowStaysOnTopHint)
@@ -65,8 +68,6 @@ class MainWindow(QtWidgets.QWidget):
         self.debounce_timer.setSingleShot(True)
         self.debounce_timer.timeout.connect(self.perform_translation)
 
-        self.update_shortcut(self.shortcut)
-
     def update_shortcut(self, new_shortcut):
         try:
             keyboard.remove_hotkey(self.shortcut)
@@ -79,12 +80,15 @@ class MainWindow(QtWidgets.QWidget):
     def toggle_visibility(self):
         if self.isHidden():
             self.show()
-            if hasattr(self, 'settings_window') and self.settings_window.isHidden():
+            if self.settings_was_open and self.settings_window:
                 self.settings_window.show()
         else:
             self.hide()
-            if hasattr(self, 'settings_window') and self.settings_window.isVisible():
+            if self.settings_window and self.settings_window.isVisible():
+                self.settings_was_open = True
                 self.settings_window.hide()
+            else:
+                self.settings_was_open = False
 
     def on_input_change(self):
         self.debounce_timer.start()
@@ -107,19 +111,18 @@ class MainWindow(QtWidgets.QWidget):
         text = self.input_box.toPlainText().strip()
         target_lang = self.target_lang_combo.currentText()
         if text:
-            try:
-                result = translator.translate(text, src=self.source_lang, dest=target_lang)
-                self.output_box.setPlainText(result.text)
-            except Exception as e:
-                self.output_box.setPlainText(f"Error: {str(e)}")        
+            result = translator.translate(text, src=self.source_lang, dest=target_lang)
+            self.output_box.setPlainText(result.text)
 
     def open_settings(self):
-        if hasattr(self, 'settings_window') and self.settings_window.isVisible():
+        if self.settings_window is not None and self.settings_window.isVisible():
             self.settings_window.close()
+            self.settings_was_open = False
         else:
             self.settings_window = SettingsWindow(self)
             self.settings_window.setGeometry(self.x(), self.y() - self.settings_window.height(), self.width(), int(self.height() * 0.8))
             self.settings_window.show()
+            self.settings_was_open = True
 
 class SettingsWindow(QtWidgets.QWidget):
     def __init__(self, main_window):
