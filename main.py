@@ -76,6 +76,7 @@ def toggle_settings():
         settings_window = tk.Toplevel(root)
         settings_window.title("Settings")
         settings_window.overrideredirect(True)
+        settings_window.attributes("-topmost", True)  
 
         settings_window_width = popup_window_width
         settings_window_height = int(0.15 * screen_height)
@@ -125,6 +126,8 @@ def toggle_settings():
 root = tk.Tk()
 root.title("Input Box")
 
+root.attributes("-topmost", True)
+
 screen_width = root.winfo_screenwidth()
 screen_height = root.winfo_screenheight()
 window_width = int(0.2 * screen_width)  
@@ -153,6 +156,8 @@ settings_button.pack(side="left", padx=5)
 
 popup_window = tk.Toplevel(root)
 popup_window.title("Translation")
+
+popup_window.attributes("-topmost", True)
 
 popup_window_width = window_width  
 popup_window_height = int(0.1 * screen_height)
